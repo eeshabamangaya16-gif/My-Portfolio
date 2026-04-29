@@ -1,0 +1,1603 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FlowPay - Payment Intent Interpreter</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #1a1a1a;
+            --secondary: #6b7280;
+            --accent: #0066ff;
+            --accent-light: #e6f0ff;
+            --bg-white: #ffffff;
+            --bg-light: #f9fafb;
+            --bg-gray: #f3f4f6;
+            --border: #e5e7eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-primary: #1a1a1a;
+            --text-secondary: #6b7280;
+            --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+            --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        html {
+            scroll-behavior: smooth;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+            background: var(--bg-white);
+            color: var(--text-primary);
+            line-height: 1.6;
+        }
+
+        /* Typography */
+        h1 {
+            font-size: 3.5rem;
+            font-weight: 600;
+            line-height: 1.1;
+            letter-spacing: -0.02em;
+        }
+
+        h2 {
+            font-size: 2.5rem;
+            font-weight: 600;
+            line-height: 1.2;
+            letter-spacing: -0.01em;
+            margin-bottom: 1.5rem;
+        }
+
+        h3 {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 1rem;
+        }
+
+        p {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+        }
+
+        .container {
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 0 2rem;
+        }
+
+        /* Navigation */
+        nav {
+            position: fixed;
+            top: 0;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-bottom: 1px solid var(--border);
+            z-index: 1000;
+        }
+
+        nav .container {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+        }
+
+        .logo {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        nav ul {
+            display: flex;
+            list-style: none;
+            gap: 2rem;
+            align-items: center;
+        }
+
+        nav a {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            transition: color 0.3s ease;
+        }
+
+        nav a:hover {
+            color: var(--primary);
+        }
+
+        .nav-cta {
+            padding: 0.5rem 1.5rem;
+            background: var(--accent);
+            color: white;
+            border-radius: 6px;
+            font-weight: 500;
+        }
+
+        .nav-cta:hover {
+            background: #0052cc;
+        }
+
+        /* Hero Section */
+        .hero {
+            margin-top: 80px;
+            padding: 5rem 0;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            align-items: center;
+            gap: 3rem;
+            min-height: 90vh;
+        }
+
+        .hero-content h1 {
+            color: var(--primary);
+            margin-bottom: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.2s both;
+        }
+
+        .hero-content p {
+            font-size: 1.15rem;
+            margin-bottom: 2rem;
+            max-width: 500px;
+            animation: fadeInUp 0.8s ease 0.4s both;
+        }
+
+        .hero-buttons {
+            display: flex;
+            gap: 1.5rem;
+            animation: fadeInUp 0.8s ease 0.6s both;
+        }
+
+        .btn {
+            padding: 1rem 2rem;
+            border-radius: 8px;
+            font-size: 1rem;
+            font-weight: 500;
+            border: none;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-block;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #0052cc;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .btn-secondary {
+            background: var(--bg-light);
+            color: var(--primary);
+            border: 1px solid var(--border);
+        }
+
+        .btn-secondary:hover {
+            background: var(--bg-gray);
+            border-color: var(--text-secondary);
+        }
+
+        /* Hero Visualization */
+        .hero-visual {
+            position: relative;
+            height: 500px;
+            animation: fadeInScale 0.8s ease 0.5s both;
+        }
+
+        .dashboard-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: var(--shadow-lg);
+            position: absolute;
+        }
+
+        .dashboard-main {
+            width: 100%;
+            height: 450px;
+            top: 0;
+            left: 0;
+        }
+
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            padding-bottom: 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .status-label {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .status-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .status-badge {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--danger);
+            color: white;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        .intent-score {
+            display: flex;
+            align-items: center;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+
+        .score-circle {
+            width: 120px;
+            height: 120px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+
+        .score-number {
+            font-size: 2.5rem;
+            font-weight: 700;
+            color: white;
+        }
+
+        .score-label {
+            font-size: 0.85rem;
+            color: rgba(255, 255, 255, 0.8);
+            margin-top: 0.5rem;
+        }
+
+        .intent-info h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .intent-info p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1rem;
+        }
+
+        .behavior-signal {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .signal-icon {
+            width: 24px;
+            height: 24px;
+            background: var(--bg-light);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* Section Styles */
+        section {
+            padding: 5rem 0;
+            border-top: 1px solid var(--border);
+        }
+
+        section:nth-child(even) {
+            background: var(--bg-light);
+        }
+
+        .section-title {
+            text-align: left;
+            margin-bottom: 3rem;
+        }
+
+        /* Problem Section */
+        .problem-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: center;
+        }
+
+        .problem-visual {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2.5rem;
+            box-shadow: var(--shadow-md);
+        }
+
+        .problem-item {
+            display: flex;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .problem-icon {
+            width: 48px;
+            height: 48px;
+            background: var(--bg-gray);
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            flex-shrink: 0;
+        }
+
+        .problem-text h4 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+        }
+
+        .problem-text p {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+        }
+
+        .missing-question {
+            background: var(--accent-light);
+            border-left: 4px solid var(--accent);
+            padding: 2rem;
+            border-radius: 8px;
+            margin-top: 2rem;
+        }
+
+        .missing-question p {
+            color: var(--primary);
+            font-weight: 500;
+            margin: 0;
+        }
+
+        /* How It Works */
+        .steps-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .step-card {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .step-card:hover {
+            box-shadow: var(--shadow-lg);
+            border-color: var(--accent);
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 40px;
+            height: 40px;
+            background: var(--accent);
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-bottom: 1rem;
+        }
+
+        .step-card h3 {
+            margin-bottom: 1rem;
+            color: var(--primary);
+        }
+
+        .step-card p {
+            font-size: 0.95rem;
+            margin-bottom: 1rem;
+        }
+
+        .step-list {
+            list-style: none;
+        }
+
+        .step-list li {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+            padding-left: 1.5rem;
+            position: relative;
+        }
+
+        .step-list li:before {
+            content: "•";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Intent Output System */
+        .intent-cards {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .intent-card {
+            background: white;
+            border: 2px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            transition: all 0.3s ease;
+        }
+
+        .intent-card.high {
+            border-color: var(--success);
+            box-shadow: 0 0 0 1px var(--success);
+        }
+
+        .intent-card.medium {
+            border-color: var(--warning);
+        }
+
+        .intent-card.low {
+            border-color: #9ca3af;
+        }
+
+        .intent-header {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .intent-badge {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .intent-badge.high {
+            background: #d1fae5;
+            color: var(--success);
+        }
+
+        .intent-badge.medium {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+
+        .intent-badge.low {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .intent-card h3 {
+            font-size: 1.3rem;
+            margin: 0;
+        }
+
+        .intent-description {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.5rem;
+            line-height: 1.5;
+        }
+
+        .intent-action {
+            background: var(--bg-gray);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .intent-action p {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 0.75rem;
+        }
+
+        .intent-action li {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.5rem;
+            margin-left: 1.25rem;
+        }
+
+        /* Interactive Demo */
+        .demo-container {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 3rem;
+            align-items: start;
+            margin-top: 3rem;
+        }
+
+        .demo-inputs {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+        }
+
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: var(--primary);
+            font-size: 0.9rem;
+        }
+
+        .form-group select,
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.95rem;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-group select:focus,
+        .form-group input:focus {
+            outline: none;
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px rgba(0, 102, 255, 0.1);
+        }
+
+        .slider-value {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-top: 0.5rem;
+        }
+
+        .demo-output {
+            background: white;
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 2rem;
+            position: sticky;
+            top: 120px;
+        }
+
+        .output-header {
+            margin-bottom: 1.5rem;
+        }
+
+        .output-header h4 {
+            color: var(--text-secondary);
+            font-size: 0.85rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+
+        .intent-score-display {
+            display: flex;
+            align-items: baseline;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .score-big {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--primary);
+        }
+
+        .score-max {
+            font-size: 1rem;
+            color: var(--text-secondary);
+        }
+
+        .classification {
+            display: inline-block;
+            padding: 0.5rem 1rem;
+            background: var(--bg-light);
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 0.9rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .classification.high {
+            background: #d1fae5;
+            color: var(--success);
+        }
+
+        .classification.medium {
+            background: #fef3c7;
+            color: var(--warning);
+        }
+
+        .classification.low {
+            background: #f3f4f6;
+            color: #6b7280;
+        }
+
+        .recommended-actions {
+            background: var(--bg-light);
+            border-radius: 8px;
+            padding: 1.5rem;
+        }
+
+        .recommended-actions h5 {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+        }
+
+        .action-item {
+            font-size: 0.9rem;
+            color: var(--text-primary);
+            margin-bottom: 0.75rem;
+            padding-left: 1.25rem;
+            position: relative;
+        }
+
+        .action-item:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: var(--accent);
+            font-weight: bold;
+        }
+
+        /* Why This Matters */
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2rem;
+            margin-top: 3rem;
+        }
+
+        .why-card {
+            text-align: center;
+        }
+
+        .why-icon {
+            width: 80px;
+            height: 80px;
+            background: var(--accent-light);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+        }
+
+        .why-card h3 {
+            margin-bottom: 1rem;
+        }
+
+        .why-card p {
+            font-size: 0.95rem;
+        }
+
+        /* System Philosophy */
+        .philosophy-box {
+            background: white;
+            border: 2px solid var(--accent);
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            max-width: 700px;
+            margin: 3rem auto 0;
+        }
+
+        .philosophy-box h3 {
+            font-size: 2rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .philosophy-box p {
+            font-size: 1.1rem;
+            line-height: 1.7;
+        }
+
+        /* Final CTA */
+        .final-cta {
+            text-align: center;
+        }
+
+        .final-cta h2 {
+            max-width: 600px;
+            margin: 0 auto 2rem;
+        }
+
+        .final-cta .btn {
+            font-size: 1.1rem;
+            padding: 1.25rem 3rem;
+        }
+
+        /* Footer */
+        footer {
+            background: var(--primary);
+            color: white;
+            padding: 3rem 0;
+            margin-top: 5rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        footer .container {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr 1fr;
+            gap: 3rem;
+        }
+
+        .footer-section h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 1.5rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .footer-section ul {
+            list-style: none;
+        }
+
+        .footer-section li {
+            margin-bottom: 0.75rem;
+        }
+
+        .footer-section a {
+            color: rgba(255, 255, 255, 0.6);
+            text-decoration: none;
+            font-size: 0.9rem;
+            transition: color 0.3s ease;
+        }
+
+        .footer-section a:hover {
+            color: white;
+        }
+
+        .footer-branding {
+            border-right: 1px solid rgba(255, 255, 255, 0.1);
+            padding-right: 3rem;
+        }
+
+        .footer-branding p {
+            color: rgba(255, 255, 255, 0.6);
+            font-size: 0.9rem;
+            margin-top: 1rem;
+        }
+
+        .footer-bottom {
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 2rem;
+            margin-top: 3rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .footer-bottom p {
+            color: rgba(255, 255, 255, 0.5);
+            font-size: 0.85rem;
+        }
+
+        /* Animations */
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.95);
+            }
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes slideInLeft {
+            from {
+                opacity: 0;
+                transform: translateX(-30px);
+            }
+            to {
+                opacity: 1;
+                transform: translateX(0);
+            }
+        }
+
+        /* Scroll Animations */
+        .fade-in {
+            opacity: 0;
+            transform: translateY(20px);
+            transition: all 0.6s ease;
+        }
+
+        .fade-in.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            h1 {
+                font-size: 2.5rem;
+            }
+
+            h2 {
+                font-size: 1.8rem;
+            }
+
+            .hero {
+                grid-template-columns: 1fr;
+                padding: 3rem 0;
+                min-height: auto;
+            }
+
+            .hero-visual {
+                height: 350px;
+            }
+
+            .steps-grid,
+            .intent-cards,
+            .why-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .problem-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .demo-container {
+                grid-template-columns: 1fr;
+            }
+
+            .demo-output {
+                position: static;
+            }
+
+            nav ul {
+                gap: 1rem;
+                font-size: 0.85rem;
+            }
+
+            footer .container {
+                grid-template-columns: 1fr;
+            }
+
+            .footer-branding {
+                border-right: none;
+                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+                padding-right: 0;
+                padding-bottom: 2rem;
+            }
+
+            .footer-bottom {
+                flex-direction: column;
+                gap: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navigation -->
+    <nav>
+        <div class="container">
+            <a href="#" class="logo">FlowPay</a>
+            <ul>
+                <li><a href="#how-it-works">How It Works</a></li>
+                <li><a href="#intent-system">Intent System</a></li>
+                <li><a href="#demo">Demo</a></li>
+                <li><a href="#faq">FAQ</a></li>
+                <li><a href="#" class="nav-cta">Start Free</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="hero">
+        <div class="container" style="display: contents;">
+            <div class="hero-content">
+                <h1>Understand why users fail payments—and what they will do next</h1>
+                <p>FlowPay interprets failed payment behavior in real time and classifies customer intent to help businesses recover lost transactions and improve conversion rates.</p>
+                <div class="hero-buttons">
+                    <button class="btn btn-primary" onclick="document.getElementById('demo').scrollIntoView()">Explore Intent Engine</button>
+                    <a href="#how-it-works" class="btn btn-secondary">View How It Works</a>
+                </div>
+            </div>
+
+            <div class="hero-visual">
+                <div class="dashboard-card dashboard-main">
+                    <div class="status-row">
+                        <span class="status-label">Payment Status</span>
+                        <span class="status-badge">FAILED</span>
+                    </div>
+
+                    <div class="intent-score">
+                        <div class="score-circle">
+                            <div>
+                                <div class="score-number">78</div>
+                                <div class="score-label">Intent</div>
+                            </div>
+                        </div>
+                        <div class="intent-info">
+                            <h4>High Intent User</h4>
+                            <p>User is highly likely to retry and complete payment</p>
+                            <div style="margin-top: 1rem;">
+                                <div class="behavior-signal">
+                                    <div class="signal-icon">✓</div>
+                                    <span>Retry attempted: Yes</span>
+                                </div>
+                                <div class="behavior-signal">
+                                    <div class="signal-icon">✓</div>
+                                    <span>Time to retry: 12 seconds</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 2rem; padding-top: 2rem; border-top: 1px solid var(--border);">
+                        <p style="font-size: 0.85rem; color: var(--text-secondary); margin-bottom: 1rem;"><strong>Recommendation:</strong></p>
+                        <div class="behavior-signal">
+                            <div class="signal-icon">→</div>
+                            <span>Immediate retry flow triggered</span>
+                        </div>
+                        <div class="behavior-signal">
+                            <div class="signal-icon">→</div>
+                            <span>Show alternative payment method</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Problem Section -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>Payment failure is not the real problem</h2>
+            </div>
+            <div class="problem-grid">
+                <div>
+                    <p style="font-size: 1.1rem; margin-bottom: 2rem;">Modern payment systems already show:</p>
+                    <div class="problem-item">
+                        <div class="problem-icon">✓</div>
+                        <div class="problem-text">
+                            <h4>Failure Reasons</h4>
+                            <p>Clear codes for why payment failed</p>
+                        </div>
+                    </div>
+                    <div class="problem-item">
+                        <div class="problem-icon">✓</div>
+                        <div class="problem-text">
+                            <h4>Decline Codes</h4>
+                            <p>Detailed transaction decline information</p>
+                        </div>
+                    </div>
+                    <div class="problem-item">
+                        <div class="problem-icon">✓</div>
+                        <div class="problem-text">
+                            <h4>Transaction Logs</h4>
+                            <p>Complete history of payment attempts</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="problem-visual">
+                    <p style="color: var(--primary); margin-bottom: 1.5rem;"><strong>But businesses still lose revenue because:</strong></p>
+                    <div style="margin-bottom: 2rem;">
+                        <p style="color: var(--text-secondary); margin-bottom: 0.5rem;">❌ They don't understand what the customer will do next after failure</p>
+                    </div>
+                    <div class="missing-question">
+                        <p>Most systems stop at "Payment failed"</p>
+                        <p style="margin-top: 1rem; font-size: 1.1rem; color: var(--accent); font-weight: 700;">But the real missing question is: <br>"Is this user still trying—or already gone?"</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Insight Section -->
+    <section id="how-it-works">
+        <div class="container">
+            <div class="section-title">
+                <h2>The missing layer in payment systems</h2>
+            </div>
+            <div style="max-width: 700px;">
+                <p style="font-size: 1.1rem; margin-bottom: 2rem;">Payments are treated as a technical event, but in reality they are a behavioral journey.</p>
+                <div style="background: var(--accent-light); border-left: 4px solid var(--accent); padding: 2rem; border-radius: 8px;">
+                    <p style="color: var(--primary); margin: 0;"><strong>Key Gap:</strong> Systems understand transactions but not user intent after failure</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Solution Section -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>Introducing FlowPay Intent Interpreter</h2>
+            </div>
+            <p style="font-size: 1.1rem; max-width: 700px; margin-bottom: 2rem;">FlowPay adds a decision layer on top of payment systems that:</p>
+            <div class="steps-grid" style="grid-template-columns: 1fr;">
+                <div class="step-card">
+                    <div style="display: flex; gap: 1.5rem;">
+                        <div style="flex-shrink: 0;">
+                            <div class="step-number" style="margin-bottom: 0;">👁</div>
+                        </div>
+                        <div>
+                            <h3>Observes Post-Failure Behavior</h3>
+                            <p>Tracks what users do immediately after a payment fails</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div style="display: flex; gap: 1.5rem;">
+                        <div style="flex-shrink: 0;">
+                            <div class="step-number" style="margin-bottom: 0;">🎯</div>
+                        </div>
+                        <div>
+                            <h3>Classifies User Intent</h3>
+                            <p>Determines if users are likely to retry or have abandoned</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="step-card">
+                    <div style="display: flex; gap: 1.5rem;">
+                        <div style="flex-shrink: 0;">
+                            <div class="step-number" style="margin-bottom: 0;">💡</div>
+                        </div>
+                        <div>
+                            <h3>Recommends Recovery Actions</h3>
+                            <p>Suggests best next steps to improve conversion</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How It Works (Core Logic) -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>From failure to decision in 3 steps</h2>
+            </div>
+            <div class="steps-grid">
+                <div class="step-card fade-in">
+                    <div class="step-number">1</div>
+                    <h3>Capture Failure Event</h3>
+                    <p>We analyze the context of every failed payment:</p>
+                    <ul class="step-list">
+                        <li>Failure type (decline, fraud, network, auth)</li>
+                        <li>Payment method used</li>
+                        <li>Device & browser info</li>
+                        <li>Geographic location</li>
+                    </ul>
+                </div>
+                <div class="step-card fade-in">
+                    <div class="step-number">2</div>
+                    <h3>Observe Behavior Signals</h3>
+                    <p>We track real-time user actions post-failure:</p>
+                    <ul class="step-list">
+                        <li>Retry attempt time</li>
+                        <li>Number of retries</li>
+                        <li>Payment method change</li>
+                        <li>Session exit signals</li>
+                    </ul>
+                </div>
+                <div class="step-card fade-in">
+                    <div class="step-number">3</div>
+                    <h3>Intent Classification</h3>
+                    <p>We classify intent using three behavioral rules:</p>
+                    <ul class="step-list">
+                        <li><strong style="color: #10b981;">Retry &lt; 30s</strong> → HIGH INTENT</li>
+                        <li><strong style="color: #f59e0b;">Retry 30–300s</strong> → MEDIUM INTENT</li>
+                        <li><strong style="color: #6b7280;">No retry + exit</strong> → LOW INTENT</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Intent Output System -->
+    <section id="intent-system">
+        <div class="container">
+            <div class="section-title">
+                <h2>Understanding user intent after failure</h2>
+            </div>
+            <div class="intent-cards">
+                <div class="intent-card high fade-in">
+                    <div class="intent-header">
+                        <div class="intent-badge high">🔴</div>
+                        <div>
+                            <h3>High Intent</h3>
+                        </div>
+                    </div>
+                    <p class="intent-description">User retries immediately and is highly likely to convert</p>
+                    <div class="intent-action">
+                        <p><strong>Recommended Actions:</strong></p>
+                        <ul style="list-style: none; padding: 0;">
+                            <li>✓ Trigger instant retry flow</li>
+                            <li>✓ Show alternative payment method</li>
+                            <li>✓ Simplify payment form</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="intent-card medium fade-in">
+                    <div class="intent-header">
+                        <div class="intent-badge medium">🟡</div>
+                        <div>
+                            <h3>Medium Intent</h3>
+                        </div>
+                    </div>
+                    <p class="intent-description">User shows hesitation, uncertain if they'll retry</p>
+                    <div class="intent-action">
+                        <p><strong>Recommended Actions:</strong></p>
+                        <ul style="list-style: none; padding: 0;">
+                            <li>✓ Send reminder email</li>
+                            <li>✓ Offer payment plan</li>
+                            <li>✓ Provide support chat</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="intent-card low fade-in">
+                    <div class="intent-header">
+                        <div class="intent-badge low">⚫</div>
+                        <div>
+                            <h3>Low Intent</h3>
+                        </div>
+                    </div>
+                    <p class="intent-description">User exits session without retrying, at risk of churn</p>
+                    <div class="intent-action">
+                        <p><strong>Recommended Actions:</strong></p>
+                        <ul style="list-style: none; padding: 0;">
+                            <li>✓ Recovery email campaign</li>
+                            <li>✓ Special incentive / discount</li>
+                            <li>✓ Personal support outreach</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Interactive Demo -->
+    <section id="demo">
+        <div class="container">
+            <div class="section-title">
+                <h2>Try the Intent Engine</h2>
+                <p style="color: var(--text-secondary);">Adjust parameters to see how FlowPay classifies intent in real time</p>
+            </div>
+            <div class="demo-container">
+                <div class="demo-inputs">
+                    <div class="form-group">
+                        <label>Failure Type</label>
+                        <select id="failureType" onchange="updateIntent()">
+                            <option value="decline">Card Decline</option>
+                            <option value="fraud">Fraud Check</option>
+                            <option value="network">Network Error</option>
+                            <option value="auth">Authentication Failed</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Time to Retry (seconds)</label>
+                        <input type="range" id="retryTime" min="0" max="600" value="30" oninput="updateIntent()" style="width: 100%; height: 6px; cursor: pointer;">
+                        <div class="slider-value"><span id="retryTimeValue">30</span> seconds</div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Retry Count</label>
+                        <select id="retryCount" onchange="updateIntent()">
+                            <option value="0">No retry</option>
+                            <option value="1" selected>1 retry</option>
+                            <option value="2">2 retries</option>
+                            <option value="3">3+ retries</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Payment Method Changed</label>
+                        <select id="methodChange" onchange="updateIntent()">
+                            <option value="no">No</option>
+                            <option value="yes">Yes</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Country</label>
+                        <select id="country" onchange="updateIntent()">
+                            <option value="in">India</option>
+                            <option value="us">United States</option>
+                            <option value="gb">United Kingdom</option>
+                            <option value="de">Germany</option>
+                            <option value="au">Australia</option>
+                        </select>
+                    </div>
+
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 1rem;" onclick="resetDemo()">Reset</button>
+                </div>
+
+                <div class="demo-output">
+                    <div class="output-header">
+                        <h4>Intent Analysis Result</h4>
+                    </div>
+
+                    <div class="intent-score-display">
+                        <span class="score-big" id="intentScore">65</span>
+                        <span class="score-max">/ 100</span>
+                    </div>
+
+                    <div class="classification" id="classification">
+                        <span id="classificationText">MEDIUM INTENT</span>
+                    </div>
+
+                    <p style="font-size: 0.9rem; color: var(--text-secondary); margin-bottom: 1.5rem;" id="intentDescription">User shows moderate signals of intent to retry</p>
+
+                    <div class="recommended-actions">
+                        <h5>Recommended Actions</h5>
+                        <div id="actionsContainer">
+                            <div class="action-item">Send reminder email</div>
+                            <div class="action-item">Offer alternative payment</div>
+                            <div class="action-item">Provide support contact</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Why This Matters -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>Why this improves payment success</h2>
+            </div>
+            <div class="why-grid">
+                <div class="why-card fade-in">
+                    <div class="why-icon">📈</div>
+                    <h3>Higher Recovery Rates</h3>
+                    <p>Not all failures are final. Many users recover after failure when guided properly.</p>
+                </div>
+                <div class="why-card fade-in">
+                    <div class="why-icon">👥</div>
+                    <h3>Reduced Customer Loss</h3>
+                    <p>Understand which users are still interested, preventing unnecessary churn.</p>
+                </div>
+                <div class="why-card fade-in">
+                    <div class="why-icon">🎯</div>
+                    <h3>Smarter Decisions</h3>
+                    <p>Make informed recovery decisions based on real user behavior, not assumptions.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- System Philosophy -->
+    <section>
+        <div class="container">
+            <div class="section-title">
+                <h2>Beyond transactions</h2>
+            </div>
+            <div class="philosophy-box">
+                <h3>FlowPay is not a payment system.</h3>
+                <p>It is a behavioral intelligence layer that helps businesses understand what users do after failure. We interpret intent, recommend actions, and enable smarter payment recovery.</p>
+            </div>
+        </div>
+    </section>
+
+    <!-- Final CTA -->
+    <section class="final-cta">
+        <div class="container">
+            <h2>Turn failed payments into recovered revenue</h2>
+            <button class="btn btn-primary" onclick="alert('Welcome to FlowPay! This is a demo. In a real deployment, this would start your free trial.')">Try Intent Interpreter</button>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer>
+        <div class="container">
+            <div class="footer-section footer-branding">
+                <h4>FlowPay</h4>
+                <p>Behavioral intelligence for payment recovery. Understanding user intent, one failure at a time.</p>
+            </div>
+            <div class="footer-section">
+                <h4>Product</h4>
+                <ul>
+                    <li><a href="#demo">Try Demo</a></li>
+                    <li><a href="#how-it-works">How It Works</a></li>
+                    <li><a href="#intent-system">Intent System</a></li>
+                    <li><a href="#">Documentation</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Company</h4>
+                <ul>
+                    <li><a href="#">About</a></li>
+                    <li><a href="#">Blog</a></li>
+                    <li><a href="#">Careers</a></li>
+                    <li><a href="#">Contact</a></li>
+                </ul>
+            </div>
+            <div class="footer-section">
+                <h4>Legal</h4>
+                <ul>
+                    <li><a href="#">Privacy Policy</a></li>
+                    <li><a href="#">Terms of Service</a></li>
+                    <li><a href="#">Security</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="container">
+            <div class="footer-bottom">
+                <p>&copy; 2024 FlowPay. All rights reserved.</p>
+                <p>Built with intent intelligence</p>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        /**
+         * ============ FLOWPAY INTENT SCORING RULES ============
+         * 
+         * Based on documented behavioral rules:
+         * 
+         * PRIMARY RULE - RETRY TIME:
+         * • Retry < 30 seconds → HIGH INTENT
+         * • Retry 30-300 seconds → MEDIUM INTENT  
+         * • No retry + session exit → LOW INTENT
+         * 
+         * SECONDARY FACTORS:
+         * • Retry count: +10 points per additional retry
+         * • Payment method change: +15 points (shows commitment)
+         * • Failure type: Network errors increase intent (+10%)
+         * 
+         * ======================================================
+         */
+
+        // Intent Classification Logic (Aligned with behavioral rules)
+        function calculateIntent() {
+            const retryTime = parseInt(document.getElementById('retryTime').value);
+            const retryCount = parseInt(document.getElementById('retryCount').value);
+            const methodChange = document.getElementById('methodChange').value === 'yes' ? 1 : 0;
+            const failureType = document.getElementById('failureType').value;
+            const country = document.getElementById('country').value;
+
+            let intentScore = 0;
+
+            // ===== PRIMARY RULE: RETRY TIME (0-100 points) =====
+            if (retryCount === 0) {
+                // No retry = User has exited
+                intentScore = 10; // Very low intent - abandoned
+            } else if (retryTime < 30) {
+                // HIGH INTENT: Immediate retry (< 30 seconds)
+                intentScore = 85; // Base score for HIGH intent
+            } else if (retryTime >= 30 && retryTime <= 300) {
+                // MEDIUM INTENT: Delayed retry (30-300 seconds / 5 minutes)
+                intentScore = 55; // Base score for MEDIUM intent
+            } else {
+                // LOW INTENT: Very delayed retry (> 300 seconds)
+                intentScore = 25;
+            }
+
+            // ===== SECONDARY FACTOR: RETRY COUNT =====
+            // Each additional retry adds confidence
+            if (retryCount > 1) {
+                // Multiple retries show persistence
+                let retryBonus = (retryCount - 1) * 8; // +8 per additional retry (max +16 for 3+)
+                intentScore = Math.min(100, intentScore + retryBonus);
+            }
+
+            // ===== SECONDARY FACTOR: PAYMENT METHOD CHANGE =====
+            // User tried different payment method = strong commitment signal
+            if (methodChange === 1) {
+                intentScore = Math.min(100, intentScore + 15);
+            }
+
+            // ===== SECONDARY FACTOR: FAILURE TYPE =====
+            // Network errors indicate user wants to pay but infrastructure failed
+            if (failureType === 'network') {
+                intentScore = Math.min(100, intentScore + 10);
+            } else if (failureType === 'fraud') {
+                // Fraud blocks are harder to recover - reduce intent
+                intentScore = Math.max(10, intentScore - 15);
+            }
+
+            // ===== FINAL CAPS =====
+            intentScore = Math.max(0, Math.min(100, intentScore));
+            return Math.round(intentScore);
+        }
+
+        function getClassification(score) {
+            if (score >= 70) return 'HIGH INTENT';
+            if (score >= 40) return 'MEDIUM INTENT';
+            return 'LOW INTENT';
+        }
+
+        function getClassificationStyle(score) {
+            if (score >= 70) return 'high';
+            if (score >= 40) return 'medium';
+            return 'low';
+        }
+
+        function getActions(score, retryTime, methodChange) {
+            const style = getClassificationStyle(score);
+            
+            if (style === 'high') {
+                return [
+                    'Trigger instant retry flow immediately',
+                    'Show alternative payment method prominently',
+                    'Keep session alive for 10 minutes',
+                    'Offer quick payment options (Apple Pay, UPI)',
+                    'Remove friction from checkout flow'
+                ];
+            } else if (style === 'medium') {
+                return [
+                    'Send reminder email within 2 hours',
+                    'Offer simplified payment form',
+                    'Show payment plan or installment option',
+                    'Enable live chat support',
+                    'Suggest saving payment method for future'
+                ];
+            } else {
+                return [
+                    'Send recovery email campaign (24hr, 7day, 30day)',
+                    'Offer special discount incentive (10-20%)',
+                    'Personal support outreach',
+                    'Enable one-click recovery link',
+                    'Consider wallet reactivation campaign'
+                ];
+            }
+        }
+
+        function updateIntent() {
+            const retryTime = document.getElementById('retryTime').value;
+            document.getElementById('retryTimeValue').textContent = retryTime;
+
+            const score = calculateIntent();
+            const classification = getClassification(score);
+            const style = getClassificationStyle(score);
+            const retryCount = parseInt(document.getElementById('retryCount').value);
+            const methodChange = document.getElementById('methodChange').value === 'yes' ? true : false;
+
+            // Update score display
+            document.getElementById('intentScore').textContent = score;
+
+            // Update classification
+            const classEl = document.getElementById('classification');
+            classEl.textContent = classification;
+            classEl.className = 'classification ' + style;
+
+            // Update description based on behavioral rules
+            let description = '';
+            let ruleTrigger = '';
+            
+            if (retryCount === 0) {
+                // No retry scenario
+                ruleTrigger = 'No retry + session exit';
+                description = 'User abandoned after payment failure. No retry attempt detected. Requires proactive recovery strategy.';
+            } else if (parseInt(retryTime) < 30) {
+                // High intent scenario
+                ruleTrigger = 'Retry < 30 seconds';
+                description = 'User retried immediately within 30 seconds. This is the strongest signal of purchase intent. High likelihood of conversion with proper support.';
+            } else if (parseInt(retryTime) >= 30 && parseInt(retryTime) <= 300) {
+                // Medium intent scenario
+                ruleTrigger = 'Retry 30-300 seconds';
+                description = 'User retried after 30 seconds to 5 minutes. Shows intent but with some hesitation. May need encouragement or simplified experience.';
+            } else {
+                // Low intent scenario
+                ruleTrigger = 'Delayed retry (> 300s)';
+                description = 'User delayed retry significantly (> 5 minutes). Low confidence signal. Requires specific incentive or support to recover.';
+            }
+
+            // Update description with rule trigger
+            document.getElementById('intentDescription').textContent = description;
+
+            // Update actions
+            const actions = getActions(score, retryTime, methodChange);
+            const actionsHTML = actions.map(action => `<div class="action-item">${action}</div>`).join('');
+            document.getElementById('actionsContainer').innerHTML = actionsHTML;
+        }
+
+        function resetDemo() {
+            document.getElementById('failureType').value = 'decline';
+            document.getElementById('retryTime').value = '30';
+            document.getElementById('retryTimeValue').textContent = '30';
+            document.getElementById('retryCount').value = '1';
+            document.getElementById('methodChange').value = 'no';
+            document.getElementById('country').value = 'in';
+            updateIntent();
+        }
+
+        // Scroll animations
+        function observeElements() {
+            const observer = new IntersectionObserver((entries) => {
+                entries.forEach(entry => {
+                    if (entry.isIntersecting) {
+                        entry.target.classList.add('visible');
+                    }
+                });
+            }, {
+                threshold: 0.1
+            });
+
+            document.querySelectorAll('.fade-in').forEach(el => {
+                observer.observe(el);
+            });
+        }
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            updateIntent();
+            observeElements();
+
+            // Smooth scroll offset for fixed nav
+            document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+                anchor.addEventListener('click', function(e) {
+                    const href = this.getAttribute('href');
+                    if (href !== '#' && document.querySelector(href)) {
+                        e.preventDefault();
+                        const element = document.querySelector(href);
+                        const yOffset = -100;
+                        const y = element.getBoundingClientRect().top + window.pageYOffset + yOffset;
+                        window.scrollTo({top: y, behavior: 'smooth'});
+                    }
+                });
+            });
+        });
+    </script>
+</body>
+</html>
